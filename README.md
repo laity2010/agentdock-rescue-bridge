@@ -2,18 +2,33 @@
 
 Out-of-band recovery bridge for the owner's Mac.
 
-Public health endpoint (does not trigger repair and contains no credential):
+## Public endpoints
 
-https://vast-broken-indie-never.trycloudflare.com/health
+The rescue bridge uses a fixed Cloudflare named tunnel that is independent of the AgentDock production tunnel:
 
-The rescue endpoint is separately protected by a rotating one-time token and is intentionally not published here.
+- Health: `https://rescue.laity.xx.kg/health`
+- Status: `https://rescue.laity.xx.kg/status`
+- Rescue gate: `https://rescue.laity.xx.kg/rescue`
+
+The rescue endpoint accepts no command, prompt, token, or arbitrary payload. It only asks the Mac-side bridge to evaluate a fixed health contract and, when that contract fails repeatedly, start a fixed local Codex recovery routine.
+
+## Recovery health contract
+
+AgentDock is considered healthy only when all three gates pass together:
+
+1. Local core health: `http://127.0.0.1:8765/healthz` returns HTTP 200 with `ok=true`.
+2. The registered macOS launchd job `com.uvwt.agentdock.tunnel` is running.
+3. Public production health through Cloudflare, `https://agentdock.laity.xx.kg/healthz`, returns HTTP 200 with `ok=true`.
+
+A local core HTTP 200 by itself is not enough. This prevents a half-recovered state where the core is alive but the external connector still returns 502/530.
 
 ## Unattended recovery
 
-This repository contains the cloud-side watchdog for the Mac AgentDock rescue bridge.
-
-- `rescue-watchdog.yml` calls `https://rescue.laity.xx.kg/rescue` every 5 minutes. The Mac bridge performs the actual local health decision; healthy AgentDock returns a no-op, while repeated local health failures start the fixed local Codex recovery routine.
+- `rescue-watchdog.yml` calls `https://rescue.laity.xx.kg/rescue` every 5 minutes from a GitHub-hosted runner. This is the external backup detector.
+- A Mac `launchd` watchdog calls the loopback rescue endpoint every 60 seconds. This is the primary detector and does not depend on GitHub or ChatGPT.
+- If the core is unhealthy, local Codex uses the installed AgentDock Desktop lifecycle to recover it.
+- If the core is healthy but the production tunnel/public health is unhealthy, Codex restarts only the existing registered tunnel job and leaves the core untouched.
+- Recovery is declared successful only after the same three health gates all pass again.
 - `keepalive.yml` makes one tiny monthly heartbeat commit so GitHub does not disable scheduled workflows after prolonged repository inactivity.
-- The Mac also has an independent local `launchd` watchdog that calls the loopback rescue endpoint every 60 seconds. The GitHub workflow is a second fault domain, not the primary detector.
 
-The public rescue endpoint accepts no arbitrary command or prompt. Recovery behavior is fixed on the Mac and guarded by health checks, a single-run lock, and a cooldown.
+The Mac bridge also uses a single-run lock and cooldown to prevent overlapping recovery attempts. No replacement AgentDock launch service is created by the rescue system.
