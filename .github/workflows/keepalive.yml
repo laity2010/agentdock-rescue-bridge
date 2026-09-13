@@ -16,13 +16,13 @@ jobs:
   keepalive:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Record monthly repository activity
         shell: bash
         run: |
           set -euo pipefail
           date -u '+%Y-%m' > .watchdog-keepalive
-          if git diff --quiet -- .watchdog-keepalive; then
+          if [[ -z "$(git status --porcelain -- .watchdog-keepalive)" ]]; then
             echo 'Heartbeat already current.'
             exit 0
           fi
