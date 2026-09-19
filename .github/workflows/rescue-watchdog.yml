@@ -23,8 +23,8 @@ jobs:
         run: |
           set -euo pipefail
 
-          RESCUE_URL='https://rescue.laity.xx.kg/rescue'
-          STATUS_URL='https://rescue.laity.xx.kg/status'
+          RESCUE_URL='https://rescue.laity.bid/rescue'
+          STATUS_URL='https://rescue.laity.bid/status'
 
           code="$(curl --silent --show-error \
             --connect-timeout 10 --max-time 25 \
